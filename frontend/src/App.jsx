@@ -1,6 +1,11 @@
 import { useEffect, useState, useRef } from "react";
-import axios from "axios";
 import Webcam from "react-webcam";
+import {
+  startSession,
+  endSession,
+  logFocus,
+  analyzeFocus,
+} from "./services/api";
 
 function App() {
   const [session, setSession] = useState(null);
@@ -10,10 +15,10 @@ function App() {
   const webcamRef = useRef(null);
   const intervalRef = useRef();
 
-  const startSession = async () => {
+  const handleStartSession = async () => {
     try {
-      const response = await axios.post("http://127.0.0.1:8000/start_session");
-      setSession(response.data);
+      const data = await startSession();
+      setSession(data);
       setIsSessionActive(true);
       startFocusTracking();
     } catch (err) {
@@ -22,59 +27,30 @@ function App() {
     }
   };
 
-  const endSession = async () => {
-    if (session?.session_id) {
-      try {
-        const response = await axios.post(
-          `http://127.0.0.1:8000/end_session`,
-          {},
-          { params: { session_id: session.session_id } }
-        );
-        setFocusPercentage(response.data.focus_percent);
-        setIsSessionActive(false);
-        clearInterval(intervalRef.current);
-      } catch (err) {
-        setError("Failed to end session");
-      }
+  const handleEndSession = async () => {
+    try {
+      const data = await endSession(session.session_id);
+      setFocusPercentage(data.focus_percent);
+      setIsSessionActive(false);
+      clearInterval(intervalRef.current);
+    } catch (err) {
+      console.error("Error ending session:", err);
+      setError("Failed to end session");
     }
   };
 
   const checkFocus = async () => {
-    if (webcamRef.current) {
-      const screenshot = webcamRef.current.getScreenshot();
+    if (!webcamRef.current) return;
+    const screenshot = webcamRef.current.getScreenshot();
+    if (!screenshot) return;
 
-      if (screenshot) {
-        const blob = await (await fetch(screenshot)).blob();
-        const formData = new FormData();
-        formData.append("file", blob, "screenshot.jpg");
+    const blob = await (await fetch(screenshot)).blob();
 
-        try {
-          const response = await axios.post(
-            "http://127.0.0.1:8000/analyze_focus/",
-            formData,
-            {
-              headers: {
-                "Content-Type": "multipart/form-data",
-              },
-            }
-          );
-
-          if (session?.session_id) {
-            await axios.post(
-              `http://127.0.0.1:8000/log_focus`,
-              {},
-              {
-                params: {
-                  session_id: session.session_id,
-                  focused: response.data.focused,
-                },
-              }
-            );
-          }
-        } catch (err) {
-          console.error("Focus check failed:", err);
-        }
-      }
+    try {
+      const focusResult = await analyzeFocus(blob);
+      await logFocus(session.session_id, focusResult.focused);
+    } catch (err) {
+      console.error("Focus check failed:", err);
     }
   };
 
@@ -83,65 +59,46 @@ function App() {
   };
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "800px", margin: "0 auto" }}>
-      <h1 style={{ textAlign: "center", marginBottom: "2rem" }}>StudySync</h1>
+    <div className="min-h-screen bg-gray-100 text-gray-800 p-6">
+      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-md p-6">
+        <h1 className="text-3xl font-bold text-center mb-6">StudySync</h1>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+        {error && <p className="text-red-500 text-center mb-4">{error}</p>}
 
-      <div style={{ marginBottom: "2rem" }}>
-        <Webcam
-          ref={webcamRef}
-          screenshotFormat="image/jpeg"
-          style={{ width: "100%", borderRadius: "8px" }}
-          mirrored={true}
-        />
-      </div>
+        <div className="mb-4">
+          <Webcam
+            ref={webcamRef}
+            screenshotFormat="image/jpeg"
+            className="w-full rounded-lg border"
+            mirrored={true}
+          />
+        </div>
 
-      <div style={{ textAlign: "center" }}>
-        {!isSessionActive ? (
-          <button
-            onClick={startSession}
-            style={{
-              backgroundColor: "#4CAF50",
-              color: "white",
-              padding: "10px 20px",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer",
-            }}
-          >
-            Start Session
-          </button>
-        ) : (
-          <button
-            onClick={endSession}
-            style={{
-              backgroundColor: "#f44336",
-              color: "white",
-              padding: "10px 20px",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer",
-            }}
-          >
-            End Session
-          </button>
+        <div className="flex justify-center space-x-4">
+          {!isSessionActive ? (
+            <button
+              onClick={handleStartSession}
+              className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded"
+            >
+              Start Session
+            </button>
+          ) : (
+            <button
+              onClick={handleEndSession}
+              className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded"
+            >
+              End Session
+            </button>
+          )}
+        </div>
+
+        {focusPercentage > 0 && (
+          <div className="mt-6 bg-gray-50 p-4 rounded-lg border">
+            <h2 className="text-xl font-semibold mb-2">Session Results</h2>
+            <p className="text-lg">Focus Percentage: {focusPercentage}%</p>
+          </div>
         )}
       </div>
-
-      {focusPercentage > 0 && (
-        <div
-          style={{
-            marginTop: "2rem",
-            padding: "1rem",
-            backgroundColor: "#f5f5f5",
-            borderRadius: "8px",
-          }}
-        >
-          <h2>Session Results</h2>
-          <p>Focus Percentage: {focusPercentage}%</p>
-        </div>
-      )}
     </div>
   );
 }
