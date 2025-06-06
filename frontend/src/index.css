@@ -1,3 +1,68 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #0a0a12;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .btn {
+    @reference px-8 py-3 rounded-full font-bold text-lg shadow-lg transition;
+  }
+  .btn-primary {
+    @reference bg-gradient-to-r from-indigo-600 to-blue-700 text-white hover:from-indigo-700 hover:to-blue-800;
+  }
+  .btn-danger {
+    @reference bg-gradient-to-r from-pink-600 to-red-600 text-white hover:from-pink-700 hover:to-red-700;
+  }
+  .card {
+    @reference bg-[#15172b] rounded-3xl shadow-2xl p-8 border border-blue-900;
+  }
+  .card-session {
+    @reference w-full max-w-md card;
+  }
+  .navbar {
+    @reference w-full bg-black py-5 shadow-lg flex justify-center items-center border-b border-blue-900;
+  }
+  .navbar-title {
+    @reference text-white text-3xl font-extrabold tracking-widest;
+  }
+  .feature-list {
+    @reference mb-8 space-y-3;
+  }
+  .feature-list li {
+    @reference flex items-center;
+  }
+  .feature-dot {
+    @reference inline-block w-2 h-2 rounded-full bg-indigo-400 mr-3;
+  }
+  .session-result {
+    @reference mt-6 w-full bg-gradient-to-r from-blue-900/80 to-blue-700/80 p-6 rounded-2xl shadow text-center border border-blue-800;
+  }
+  .footer {
+    @reference py-4 text-center text-gray-500 text-sm bg-black border-t border-blue-900;
+  }
+}
+
+/* Custom utility styles */
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(90deg, #6366f1 0%, #1e3a8a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-fill-color: transparent;
+  }
+  .shadow-strong {
+    box-shadow: 0 10px 25px 0 rgba(30, 58, 138, 0.25);
+  }
+  .bg-darkblue-gradient {
+    background: linear-gradient(135deg, #0a0a12 0%, #1e293b 100%);
+  }
+}
