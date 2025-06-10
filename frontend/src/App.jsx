@@ -1,165 +1,126 @@
-import { useState, useRef } from "react";
-import Webcam from "react-webcam";
-import {
-  startSession,
-  endSession,
-  logFocus,
-  analyzeFocus,
-} from "./services/api";
 import './index.css';
+import Webcam from "react-webcam";
+import { useState, useRef } from "react";
 
-function App() {
-  const [session, setSession] = useState(null);
-  const [error, setError] = useState("");
-  const [isSessionActive, setIsSessionActive] = useState(false);
-  const [focusPercentage, setFocusPercentage] = useState(0);
-  const webcamRef = useRef(null);
-  const intervalRef = useRef();
-
-  const handleStartSession = async () => {
-    try {
-      const data = await startSession();
-      setSession(data);
-      setIsSessionActive(true);
-      startFocusTracking();
-    } catch (err) {
-      setError("Failed to start session. Is FastAPI running?");
-    }
-  };
-
-  const handleEndSession = async () => {
-    try {
-      const data = await endSession(session.session_id);
-      setFocusPercentage(data.focus_percent);
-      setIsSessionActive(false);
-      clearInterval(intervalRef.current);
-    } catch (err) {
-      setError("Failed to end session");
-    }
-  };
-
-  const checkFocus = async () => {
-    if (!webcamRef.current) return;
-    const screenshot = webcamRef.current.getScreenshot();
-    if (!screenshot) return;
-    const blob = await (await fetch(screenshot)).blob();
-    try {
-      const focusResult = await analyzeFocus(blob);
-      await logFocus(session.session_id, focusResult.focused);
-    } catch (err) {}
-  };
-
-  const startFocusTracking = () => {
-    intervalRef.current = setInterval(checkFocus, 5000);
-  };
-
+function Feature({ icon, title, desc }) {
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Navbar */}
-      <nav className="w-full bg-black py-5 shadow-lg flex justify-center items-center">
-        <span className="text-white text-3xl font-extrabold tracking-widest">StudySync</span>
-      </nav>
-      {/* Split Layout */}
-      <div className="flex flex-1 flex-col md:flex-row">
-        {/* Left: Info/Marketing */}
-        <section className="md:w-1/2 bg-black text-white flex flex-col justify-center px-8 py-12">
-          <div className="max-w-lg mx-auto">
-            <h1 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight">
-              Stay Focused, <span className="text-indigo-400">Stay Winning</span>
-            </h1>
-            <p className="text-lg mb-8 text-gray-300">
-              StudySync uses your webcam and AI to help you lock in and maximize your productivity. 
-              Track your focus, get real-time feedback, and see your improvement over time.
-            </p>
-            <ul className="mb-8 space-y-3">
-              <li className="flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-3"></span>
-                <span>AI-powered focus detection</span>
-              </li>
-              <li className="flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-3"></span>
-                <span>Session analytics & progress tracking</span>
-              </li>
-              <li className="flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-3"></span>
-                <span>Simple, privacy-first design</span>
-              </li>
-            </ul>
-            <div className="text-gray-400 text-sm">
-              <span className="font-semibold">Why StudySync?</span> <br />
-              <span>
-                Because your time is valuable. Let technology help you build better study habits and achieve your goals.
-              </span>
-            </div>
-          </div>
-        </section>
-        {/* Right: Camera & Controls */}
-        <section className="md:w-1/2 flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-100 py-12">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8">
-            {error && (
-              <div className="mb-4 p-3 rounded bg-red-100 text-red-700 text-center font-semibold">
-                {error}
-              </div>
-            )}
-            <div className="flex flex-col items-center">
-              <div className="w-64 h-64 rounded-2xl overflow-hidden shadow-lg border-4 border-indigo-100 mb-6 bg-gray-100">
-                <Webcam
-                  ref={webcamRef}
-                  screenshotFormat="image/jpeg"
-                  className="w-full h-full object-cover"
-                  mirrored={true}
-                />
-              </div>
-              <div className="flex gap-6 mb-6">
-                {!isSessionActive ? (
-                  <button
-                    onClick={handleStartSession}
-                    className="px-8 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-bold text-lg shadow-lg hover:from-indigo-600 hover:to-blue-600 transition"
-                  >
-                    Start Session
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleEndSession}
-                    className="px-8 py-3 rounded-full bg-gradient-to-r from-pink-500 to-red-500 text-white font-bold text-lg shadow-lg hover:from-pink-600 hover:to-red-600 transition"
-                  >
-                    End Session
-                  </button>
-                )}
-              </div>
-              {session && (
-                <div className="mb-4 text-center">
-                  <div className="text-gray-600 text-sm">
-                    <span className="font-semibold">Session ID:</span>{" "}
-                    {session.session_id}
-                  </div>
-                  <div className="text-gray-600 text-sm">
-                    <span className="font-semibold">Started:</span>{" "}
-                    {new Date(session.start_time).toLocaleString()}
-                  </div>
-                </div>
-              )}
-              {focusPercentage > 0 && (
-                <div className="mt-6 w-full bg-gradient-to-r from-green-100 to-green-50 p-6 rounded-2xl shadow text-center">
-                  <h2 className="text-2xl font-bold text-green-700 mb-2">
-                    Session Results
-                  </h2>
-                  <p className="text-lg text-green-800 font-semibold">
-                    Focus Percentage:{" "}
-                    <span className="text-3xl">{focusPercentage}%</span>
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      </div>
-      {/* Footer */}
-      <footer className="py-4 text-center text-gray-400 text-sm bg-black">
-        &copy; {new Date().getFullYear()} StudySync &mdash; Built for your best self.
-      </footer>
+    <div className="card flex flex-col items-center text-center gap-2">
+      <div className="text-3xl text-indigo-400">{icon}</div>
+      <div className="font-bold text-gray-100">{title}</div>
+      <div className="text-gray-400 text-sm">{desc}</div>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const webcamRef = useRef(null);
+
+  return (
+    <div className="min-h-screen bg-[#0a0a12] flex flex-col">
+      <nav className="navbar">
+        <span className="navbar-title">StudySync</span>
+        <div className="ml-auto flex gap-6">
+          <a href="#" className="text-gray-300 hover:text-indigo-400 font-medium transition">Home</a>
+          <a href="#" className="text-gray-300 hover:text-indigo-400 font-medium transition">About</a>
+          <a href="#" className="text-gray-300 hover:text-indigo-400 font-medium transition">Features</a>
+          <a href="#" className="text-gray-300 hover:text-indigo-400 font-medium transition">Contact</a>
+          <button className="btn btn-primary ml-4">Sign Up</button>
+        </div>
+      </nav>
+      <section className="flex flex-col md:flex-row items-center justify-between px-8 py-16 bg-gradient-to-br from-[#15172b] to-[#1e293b] border-b border-blue-900">
+        <div className="flex-1 max-w-xl">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-100 mb-4 leading-tight">
+            Enhance Your Focus, <br className="hidden md:block" />
+            <span className="text-gradient">Master Your Code.</span>
+          </h1>
+          <p className="text-lg text-gray-400 mb-8">
+            Leverage AI-powered camera detection to maintain concentration during deep work and study sessions. Maximize productivity and learning retention with real-time feedback.
+          </p>
+          <div className="flex gap-4">
+            <button className="btn btn-primary">Try the Focus Detector</button>
+            <button className="btn btn-danger">Learn More</button>
+          </div>
+        </div>
+        <div className="flex-1 flex justify-center mt-10 md:mt-0">
+          <div className="rounded-2xl overflow-hidden shadow-strong border-4 border-blue-900 bg-[#15172b]">
+            <Webcam
+              ref={webcamRef}
+              screenshotFormat="image/jpeg"
+              className="w-72 h-56 object-cover"
+              mirrored={true}
+              style={{ filter: isSessionActive ? "none" : "grayscale(1) blur(2px)" }}
+            />
+          </div>
+        </div>
+      </section>
+      <section className="py-16 px-4 max-w-6xl mx-auto">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-100 text-center mb-10">Why Choose StudySync?</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Feature
+            icon="🎯"
+            title="Enhanced Focus"
+            desc="AI-powered detection helps you stay on track and maximize your study sessions."
+          />
+          <Feature
+            icon="⚡"
+            title="Real-time Feedback"
+            desc="Instant alerts notify you when your concentration drifts, allowing for immediate correction."
+          />
+          <Feature
+            icon="📈"
+            title="Progress Tracking"
+            desc="Monitor your focus levels and productivity trends over time with insightful analytics."
+          />
+          <Feature
+            icon="🔔"
+            title="Customizable Alerts"
+            desc="Tailor notification patterns and intensity to fit your personal study preferences."
+          />
+          <Feature
+            icon="🔒"
+            title="Privacy First"
+            desc="All processing occurs locally on your device, ensuring your data remains private and secure."
+          />
+          <Feature
+            icon="🔗"
+            title="Seamless Integration"
+            desc="Works effortlessly with your existing workflow, no complex configuration required."
+          />
+        </div>
+      </section>
+      <section className="py-16 px-4 max-w-5xl mx-auto">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-100 text-center mb-10">How It Works</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="card flex flex-col items-center text-center">
+            <div className="text-3xl text-indigo-400 mb-2">📷</div>
+            <div className="font-bold text-gray-100 mb-1">Activate Camera</div>
+            <div className="text-gray-400 text-sm">Enable your webcam within the app. Our AI begins analyzing your posture and gaze.</div>
+          </div>
+          <div className="card flex flex-col items-center text-center">
+            <div className="text-3xl text-indigo-400 mb-2">🚀</div>
+            <div className="font-bold text-gray-100 mb-1">Start Session</div>
+            <div className="text-gray-400 text-sm">Begin your coding or study session. The detector quietly works in the background.</div>
+          </div>
+          <div className="card flex flex-col items-center text-center">
+            <div className="text-3xl text-indigo-400 mb-2">💡</div>
+            <div className="font-bold text-gray-100 mb-1">Get Feedback</div>
+            <div className="text-gray-400 text-sm">Receive subtle, real-time alerts if your focus wavers, helping you re-engage instantly.</div>
+          </div>
+        </div>
+      </section>
+      <section className="py-16 px-4 flex flex-col items-center justify-center bg-gradient-to-br from-[#15172b] to-[#1e293b] border-t border-blue-900">
+        <h2 className="text-3xl md:text-4xl font-extrabold text-gray-100 mb-4 text-center">
+          Ready to Elevate Your Study Sessions?
+        </h2>
+        <p className="text-lg text-gray-400 mb-8 text-center max-w-2xl">
+          Join hundreds of developers boosting their focus and productivity with StudySync. Sign up now and transform your workflow!
+        </p>
+        <button className="btn btn-primary">Sign Up For Free</button>
+      </section>
+      <footer className="footer">
+        &copy; {new Date().getFullYear()} StudySync &mdash; All rights reserved.
+      </footer>
+    </div>
+  );
+}
