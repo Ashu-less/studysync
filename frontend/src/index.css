@@ -2,66 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom base styles */
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
     background-color: #0a0a12;
+    color: #fff;
   }
 }
 
-/* Custom component styles */
 @layer components {
   .btn {
-    @reference px-8 py-3 rounded-full font-bold text-lg shadow-lg transition;
+    @reference px-10 py-4 rounded-full font-bold text-xl shadow-xl transition text-white border-2 border-blue-200;
   }
+
   .btn-primary {
-    @reference bg-gradient-to-r from-indigo-600 to-blue-700 text-white hover:from-indigo-700 hover:to-blue-800;
+    @reference bg-gradient-to-r from-sky-400 to-blue-400 text-white hover:from-sky-300 hover:to-blue-300 border-blue-200;
   }
+
   .btn-danger {
-    @reference bg-gradient-to-r from-pink-600 to-red-600 text-white hover:from-pink-700 hover:to-red-700;
+    @reference bg-gradient-to-r from-pink-400 to-red-400 text-white hover:from-pink-300 hover:to-red-300 border-pink-200;
   }
+
   .card {
-    @reference bg-[#15172b] rounded-3xl shadow-2xl p-8 border border-blue-900;
+    @reference bg-[#15172b] rounded-3xl shadow-2xl p-8 border border-blue-900 text-white;
   }
+
   .card-session {
     @reference w-full max-w-md card;
   }
+
   .navbar {
-    @reference w-full bg-black py-5 shadow-lg flex justify-center items-center border-b border-blue-900;
+    @reference w-full bg-gradient-to-b from-gray-800 via-gray-900 to-[#181a29] py-6 shadow-lg flex justify-center items-center border-b border-blue-900 text-white;
   }
+
   .navbar-title {
     @reference text-white text-3xl font-extrabold tracking-widest;
   }
+
   .feature-list {
     @reference mb-8 space-y-3;
   }
+
   .feature-list li {
     @reference flex items-center;
   }
+
   .feature-dot {
     @reference inline-block w-2 h-2 rounded-full bg-indigo-400 mr-3;
   }
+
   .session-result {
-    @reference mt-6 w-full bg-gradient-to-r from-blue-900/80 to-blue-700/80 p-6 rounded-2xl shadow text-center border border-blue-800;
+    @reference mt-6 w-full bg-gradient-to-r from-blue-900/80 to-blue-700/80 p-6 rounded-2xl shadow text-center border border-blue-800 text-white;
   }
+
   .footer {
-    @reference py-4 text-center text-gray-500 text-sm bg-black border-t border-blue-900;
+    @reference py-4 text-center text-gray-300 text-sm bg-[#181a29] border-t border-blue-900;
   }
 }
 
-/* Custom utility styles */
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(90deg, #6366f1 0%, #1e3a8a 100%);
+    background: linear-gradient(90deg, #38bdf8 0%, #60a5fa 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     text-fill-color: transparent;
   }
+
   .shadow-strong {
     box-shadow: 0 10px 25px 0 rgba(30, 58, 138, 0.25);
   }
+
   .bg-darkblue-gradient {
     background: linear-gradient(135deg, #0a0a12 0%, #1e293b 100%);
   }
