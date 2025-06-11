@@ -1,6 +1,11 @@
 //import './index.css';
 import Webcam from "react-webcam";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
+import SignIn from "./SignIn";
+import SignUp from "./SignUp";
+import { auth } from "./firebase";
 
 function Feature({ icon, title, desc }) {
   return (
@@ -12,9 +17,105 @@ function Feature({ icon, title, desc }) {
   );
 }
 
-export default function App() {
+function FocusFeedback({ focused }) {
+  return (
+    <div className="mt-4 text-center">
+      {focused === null ? null : focused ? (
+        <span className="text-green-400 font-bold">You are focused!</span>
+      ) : (
+        <span className="text-red-400 font-bold">Please look at the screen</span>
+      )}
+    </div>
+  );
+}
+
+function Button({ children, variant = "primary", className = "", ...props }) {
+  const base = "btn font-bold rounded-full px-6 py-2 text-lg shadow-xl transition-transform duration-200";
+  const variants = {
+    primary: "bg-gradient-to-r from-sky-400 to-blue-400 text-white hover:scale-105 hover:from-sky-300 hover:to-blue-300 border-blue-200",
+    danger: "bg-gradient-to-r from-pink-400 to-red-400 text-white hover:scale-105 hover:from-pink-300 hover:to-red-300 border-pink-200",
+    outline: "bg-transparent border-2 border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white hover:scale-105",
+  };
+  return (
+    <button className={`${base} ${variants[variant] || ""} ${className}`} {...props}>
+      {children}
+    </button>
+  );
+}
+
+function RequireAuth({ children }) {
+  const [user, setUser] = useState(() => auth.currentUser);
+  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(u => {
+      console.log("Auth state changed:", u); // Debug log
+      setUser(u);
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  if (loading) return <div>Loading...</div>; // Show a loading state while checking auth
+  if (!user) return <Navigate to="/signin" state={{ from: location }} replace />;
+  return children;
+}
+
+function RedirectIfAuth({ children }) {
+  const [user, setUser] = useState(() => auth.currentUser);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(u => {
+      console.log("Auth state changed:", u); // Debug log
+      setUser(u);
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  if (loading) return <div>Loading...</div>; // Show a loading state while checking auth
+  if (user) return <Navigate to="/" replace />;
+  return children;
+}
+
+function Layout() {
   const [isSessionActive, setIsSessionActive] = useState(false);
+  const [focused, setFocused] = useState(null);
   const webcamRef = useRef(null);
+  const navigate = useNavigate();
+
+  // Focus detection: periodically send webcam image to backend
+  React.useEffect(() => {
+    let interval;
+    if (isSessionActive) {
+      interval = setInterval(async () => {
+        if (webcamRef.current) {
+          const imageSrc = webcamRef.current.getScreenshot();
+          if (imageSrc) {
+            const blob = await (await fetch(imageSrc)).blob();
+            const file = new File([blob], "screenshot.jpg", { type: "image/jpeg" });
+            try {
+              const res = await fetch("http://127.0.0.1:8000/analyze_focus/", {
+                method: "POST",
+                body: (() => {
+                  const fd = new FormData();
+                  fd.append("file", file);
+                  return fd;
+                })(),
+              });
+              const data = await res.json();
+              setFocused(data.focused);
+            } catch {
+              setFocused(null);
+            }
+          }
+        }
+      }, 3000); // every 3 seconds
+    }
+    return () => clearInterval(interval);
+  }, [isSessionActive]);
 
   return (
     <div className="min-h-screen bg-[#101223] flex flex-col">
@@ -33,8 +134,8 @@ export default function App() {
             <a href="#" className="text-white hover:text-sky-300 font-semibold text-lg transition">Contact</a>
           </div>
           <div className="flex gap-3 items-center">
-            <button className="btn btn-primary">Sign In</button>
-            <button className="btn btn-danger">Sign Up</button>
+            <Button variant="primary" onClick={() => navigate("/signin")}>Sign In</Button>
+            <Button variant="danger" onClick={() => navigate("/signup")}>Sign Up</Button>
           </div>
         </div>
       </nav>
@@ -50,9 +151,21 @@ export default function App() {
                 Leverage AI-powered camera detection to maintain concentration during deep work and study sessions. Maximize productivity and learning retention with real-time feedback.
               </p>
               <div className="flex gap-4">
-                <button className="btn btn-primary shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-transform duration-150">Try the Focus Detector</button>
-                <button className="btn btn-danger shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-transform duration-150">Learn More</button>
+                <Button
+                  variant="primary"
+                  className="shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-transform duration-150"
+                  onClick={() => setIsSessionActive(true)}
+                >
+                  Try the Focus Detector
+                </Button>
+                <Button
+                  variant="danger"
+                  className="shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-transform duration-150"
+                >
+                  Learn More
+                </Button>
               </div>
+              <FocusFeedback focused={focused} />
             </div>
             <div className="flex-1 flex justify-center">
               <div className="rounded-2xl overflow-hidden shadow-strong border-4 border-blue-900 bg-[#23263a] w-80 h-60 flex items-center justify-center">
@@ -109,12 +222,48 @@ export default function App() {
           <p className="text-lg text-gray-300 mb-8 text-center max-w-2xl">
             Join hundreds of developers boosting their focus and productivity with StudySync. Sign up now and transform your workflow!
           </p>
-          <button className="btn btn-primary shadow-lg hover:scale-110 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-transform duration-150">Sign Up For Free</button>
+          <Button className="btn-primary shadow-lg hover:scale-110 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-transform duration-150">
+            Sign Up For Free
+          </Button>
         </section>
       </main>
       <footer className="footer bg-[#181a29] border-t border-blue-900">
         &copy; {new Date().getFullYear()} StudySync &mdash; All rights reserved.
       </footer>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <Layout />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/signin"
+          element={
+            <RedirectIfAuth>
+              <SignIn />
+            </RedirectIfAuth>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <RedirectIfAuth>
+              <SignUp />
+            </RedirectIfAuth>
+          }
+        />
+        {/* ...other routes... */}
+      </Routes>
+    </Router>
   );
 }
