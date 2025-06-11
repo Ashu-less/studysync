@@ -7,6 +7,10 @@ from keras.utils import to_categorical
 import tf2onnx
 import pandas as pd
 
+# Enable mixed precision
+from tensorflow.keras import mixed_precision
+mixed_precision.set_global_policy('mixed_float16')
+
 # Load dataset 
 def load_data():
     # Load FER2013 dataset from CSV
@@ -20,7 +24,8 @@ def load_data():
 
     X = np.array([np.fromstring(pixel_seq, sep=' ').reshape(width, height) for pixel_seq in pixels])
     X = np.stack([X]*3, axis=-1)  # Convert to 3 channels (grayscale to RGB)
-    X = np.array([tf.image.resize(img, (64, 64)).numpy() for img in X])  # Resize to 64x64
+    # Remove resizing to 64x64 for speed and accuracy
+    # X = np.array([tf.image.resize(img, (64, 64)).numpy() for img in X])
     X = X / 255.0  # Normalize
 
     y = data['emotion'].values  # Labels
@@ -28,23 +33,23 @@ def load_data():
     print(f"Loaded FER2013 data: {X.shape[0]} samples.")
     return X, y
 
-def build_model(input_shape, num_classes):
+def build_balanced_cnn(input_shape, num_classes):
     model = models.Sequential([
-        layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
+        layers.Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=input_shape),
         layers.BatchNormalization(),
-        layers.Conv2D(32, (3, 3), activation='relu'),
-        layers.BatchNormalization(),
-        layers.MaxPooling2D((2, 2)),
-        layers.Dropout(0.25),
-
-        layers.Conv2D(64, (3, 3), activation='relu'),
-        layers.BatchNormalization(),
-        layers.Conv2D(64, (3, 3), activation='relu'),
+        layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
         layers.BatchNormalization(),
         layers.MaxPooling2D((2, 2)),
         layers.Dropout(0.25),
 
-        layers.Conv2D(128, (3, 3), activation='relu'),
+        layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+        layers.BatchNormalization(),
+        layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+        layers.BatchNormalization(),
+        layers.MaxPooling2D((2, 2)),
+        layers.Dropout(0.3),
+
+        layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
         layers.BatchNormalization(),
         layers.MaxPooling2D((2, 2)),
         layers.Dropout(0.4),
@@ -53,7 +58,7 @@ def build_model(input_shape, num_classes):
         layers.Dense(128, activation='relu'),
         layers.BatchNormalization(),
         layers.Dropout(0.5),
-        layers.Dense(num_classes, activation='softmax')
+        layers.Dense(num_classes, activation='softmax', dtype='float32')
     ])
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     return model
@@ -99,16 +104,16 @@ def train_and_export_model():
     y_train = to_categorical(y_train, num_classes=7)
     y_test = to_categorical(y_test, num_classes=7)
 
-    # Data augmentation
     datagen = tf.keras.preprocessing.image.ImageDataGenerator(
-        rotation_range=15,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        horizontal_flip=True
+        rotation_range=20,
+        width_shift_range=0.15,
+        height_shift_range=0.15,
+        horizontal_flip=True,
+        zoom_range=0.2
     )
     datagen.fit(X_train)
 
-    model = build_model(input_shape=(64, 64, 3), num_classes=7)
+    model = build_balanced_cnn(input_shape=(48, 48, 3), num_classes=7)
     
     model.summary()
 
@@ -116,9 +121,8 @@ def train_and_export_model():
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
     early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
 
-    # Train model with data augmentation and EarlyStopping
     history = model.fit(
-        datagen.flow(X_train, y_train, batch_size=32),
+        datagen.flow(X_train, y_train, batch_size=64),
         epochs=10,
         validation_data=(X_test, y_test),
         callbacks=[tensorboard_callback, early_stopping]
@@ -149,6 +153,25 @@ def train_and_export_model():
         output_path=onnx_path
     )
     print(f"Model saved to {onnx_path}")
+
+def predict_emotion_onnx(image_array, onnx_path="models/emotion_model.onnx"):
+    """
+    image_array: numpy array of shape (48, 48, 3), values in [0, 1]
+    Returns: predicted class index
+    """
+    # Typo fix: use 'onnxruntime', not 'onxruntime'
+    import onnxruntime as ort
+    # Preprocess: add batch dimension and convert to float32
+    img = image_array.astype(np.float32)[np.newaxis, ...]
+    ort_sess = ort.InferenceSession(onnx_path)
+    input_name = ort_sess.get_inputs()[0].name
+    preds = ort_sess.run(None, {input_name: img})[0]
+    return np.argmax(preds, axis=1)[0]
+
+# Example usage:
+# img = ... # preprocess your image to (48, 48, 3) and scale to [0, 1]
+# pred = predict_emotion_onnx(img)
+# print("Predicted emotion class:", pred)
 
 if __name__ == "__main__":
     os.makedirs("models", exist_ok=True)
