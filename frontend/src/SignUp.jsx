@@ -72,8 +72,8 @@ export default function SignUp({ onSignUp }) {
         <span>Already have an account? </span>
         <Button
           type="button"
-          variant="outline"
-          className="text-blue-400 underline ml-1 border-none bg-transparent p-0"
+          variant=""
+          className="ml-2 inline-block font-semibold underline bg-white text-blue-500 border-none px-4 py-1"
           onClick={() => navigate("/signin")}
         >
           Sign In

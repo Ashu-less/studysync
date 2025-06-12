@@ -85,6 +85,14 @@ function Layout() {
   const [focused, setFocused] = useState(null);
   const webcamRef = useRef(null);
   const navigate = useNavigate();
+  const [user, setUser] = useState(() => auth.currentUser);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(u => {
+      setUser(u);
+    });
+    return unsub;
+  }, []);
 
   // Focus detection: periodically send webcam image to backend
   React.useEffect(() => {
@@ -117,6 +125,11 @@ function Layout() {
     return () => clearInterval(interval);
   }, [isSessionActive]);
 
+  const handleSignOut = async () => {
+    await auth.signOut();
+    navigate("/signin");
+  };
+
   return (
     <div className="min-h-screen bg-[#101223] flex flex-col">
       <nav className="navbar sticky top-0 z-50 bg-gradient-to-b from-gray-800 via-gray-900 to-[#181a29] border-b border-blue-900 px-6">
@@ -134,8 +147,17 @@ function Layout() {
             <a href="#" className="text-white hover:text-sky-300 font-semibold text-lg transition">Contact</a>
           </div>
           <div className="flex gap-3 items-center">
-            <Button variant="primary" onClick={() => navigate("/signin")}>Sign In</Button>
-            <Button variant="danger" onClick={() => navigate("/signup")}>Sign Up</Button>
+            {user ? (
+              <>
+                <span className="text-white font-semibold">{user.email}</span>
+                <Button variant="danger" onClick={handleSignOut}>Sign Out</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="primary" onClick={() => navigate("/signin")}>Sign In</Button>
+                <Button variant="danger" onClick={() => navigate("/signup")}>Sign Up</Button>
+              </>
+            )}
           </div>
         </div>
       </nav>

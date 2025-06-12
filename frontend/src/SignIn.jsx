@@ -66,15 +66,19 @@ export default function SignIn({ onSignIn }) {
         onChange={(e) => setPassword(e.target.value)}
         required
       />
-      <Button variant="primary" className="w-full" type="submit">
+      <Button
+        variant=""
+        className="w-full font-semibold bg-white text-blue-500 border-none px-4 py-2 mb-2"
+        type="submit"
+      >
         Sign In
       </Button>
       <div className="mt-4 text-center">
         <span>Don't have an account? </span>
         <Button
           type="button"
-          variant="outline"
-          className="text-blue-400 underline ml-1 border-none bg-transparent p-0"
+          variant=""
+          className="ml-2 inline-block font-semibold underline bg-white text-blue-500 border-none px-4 py-1"
           onClick={() => navigate("/signup")}
         >
           Sign Up
