@@ -1,0 +1,297 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+build/
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.egg-info/
+.eggs/
+*.egg
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+venv/
+ENV/
+env/
+.venv/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.bak
+
+# Logs
+logs/
+*.log
+
+# Coverage
+coverage/
+*.lcov
+
+# Misc
+*.tgz
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# Test output
+test-output/
+junit-report.xml
+
+# System Files
+*.tmp
+*.temp
+
+# Others
+.cache/
+.next/
+out/
+bower_components/
+jspm_packages/
+typings/
+lib-cov/
+*.seed
+*.pid
+*.pid.lock
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+# Parcel
+.cache/
+.parcel-cache/
+
+# Svelte
+.svelte-kit/
+
+# React Native
+.expo/
+.expo-shared/
+
+# Firebase
+.firebase/
+.firebaserc
+
+# VS Code settings
+.vscode/*
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Local env files
+*.local
+
+# Temporary files
+tmp/
+temp/
+
+# Ignore by pattern
+*.bak
+*.old
+*.orig
+*.rej
+
+# Ignore lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Ignore coverage reports
+coverage/
+*.lcov
+
+# Ignore build artifacts
+build/
+dist/
+out/
+
+# Ignore static analysis tool output
+.eslintcache
+.stylelintcache
+
+# Ignore storybook build
+storybook-static/
+
+# Ignore public folder (if built)
+public/
+
+# Ignore database files
+*.sqlite
+*.sqlite3
+*.db
+
+# Ignore docker files
+docker-compose.override.yml
+
+# Ignore test snapshots
+__snapshots__/
+
+# Ignore screenshots
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# Ignore PDF and office files
+*.pdf
+*.docx
+*.xlsx
+*.pptx
+
+# Ignore archives
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# Ignore OS generated files
+Icon?
+ehthumbs.db
+Thumbs.db
+
+# Ignore lock files
+*.lock
+
+# Ignore npm debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore coverage output
+coverage/
+*.lcov
+
+# Ignore next.js build output
+.next/
+
+# Ignore Nuxt.js build output
+.nuxt/
+dist/
+
+# Ignore Gatsby files
+.cache/
+public/
+
+# Ignore Sapper build output
+__sapper__/
+
+# Ignore Gridsome build output
+dist/
+
+# Ignore Vuepress build output
+.vuepress/dist/
+
+# Ignore Docusaurus build output
+.build/
+
+# Ignore serverless directories
+.serverless/
+
+# Ignore FuseBox cache
+.fusebox/
+
+# Ignore DynamoDB Local files
+.dynamodb/
+
+# Ignore TernJS port file
+.tern-port
+
+# Ignore Quasar build output
+/dist/spa/
+/dist/ssr/
+/dist/pwa/
+/dist/bex/
+/dist/capacitor/
+/dist/electron/
+
+# Ignore Capacitor build output
+/android/
+/ios/
+
+# Ignore Expo files
+.expo/
+.expo-shared/
+
+# Ignore Android Studio files
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+
+# Ignore Xcode files
+*.xcworkspace
+*.xcuserstate
+*.xcuserdata
+*.xcodeproj
+*.xcconfig
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcsettings
+
+# Ignore Flutter files
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache
+.pub
+build/
+
+# Ignore model files and directories
+models/
+*.h5
+*.onnx
+*.pb
+
+# Ignore TensorBoard logs
+logs/
+
+# Ignore dataset files
+fer2013.csv

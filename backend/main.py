@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi import Depends
 
 from fastapi.middleware.cors import CORSMiddleware
-from focus_detector import is_focused
+from focus_detector import is_focused_and_emotion
 
 from database import Base, engine, SessionLocal
 from sqlalchemy.orm import Session
@@ -65,4 +65,5 @@ def end_session(session_id: int, db: Session = Depends(get_db)):
 @app.post("/analyze_focus/")
 async def analyze_focus(file: UploadFile = File(...)):
     content = await file.read()
-    return {"focused": is_focused(content)}
+    result = is_focused_and_emotion(content)  # Uses ONNX model for emotion
+    return result
