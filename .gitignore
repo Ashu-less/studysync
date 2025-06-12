@@ -8,10 +8,6 @@ dist/
 build/
 .env
 .env.*
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 # Python
 __pycache__/
@@ -30,7 +26,6 @@ venv/
 ENV/
 env/
 .venv/
-*.ipynb_checkpoints
 
 # macOS
 .DS_Store
@@ -300,6 +295,3 @@ logs/
 
 # Ignore dataset files
 fer2013.csv
-
-# Ignore Jupyter Notebook checkpoints
-.ipynb_checkpoints/
