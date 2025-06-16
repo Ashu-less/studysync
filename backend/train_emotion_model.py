@@ -1,178 +1,171 @@
 import tensorflow as tf
-from tensorflow.keras import layers, models
 import numpy as np
-import os
-from sklearn.model_selection import train_test_split
-from keras.utils import to_categorical
-import tf2onnx
 import pandas as pd
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import os
+
+# Set environment variables
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'  # Show all logs
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # Use first GPU
 
 # Enable mixed precision
-from tensorflow.keras import mixed_precision
-mixed_precision.set_global_policy('mixed_float16')
+tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
-# Load dataset 
-def load_data():
-    # Load FER2013 dataset from CSV
-    fer_path = "fer2013.csv"  # Make sure this file exists in your project directory
-    if not os.path.exists(fer_path):
-        raise FileNotFoundError("fer2013.csv not found. Download it from Kaggle and place it in the project directory.")
-
-    data = pd.read_csv(fer_path)
-    pixels = data['pixels'].tolist()
-    width, height = 48, 48  
-
-    X = np.array([np.fromstring(pixel_seq, sep=' ').reshape(width, height) for pixel_seq in pixels])
-    X = np.stack([X]*3, axis=-1)  # Convert to 3 channels (grayscale to RGB)
-    # Remove resizing to 64x64 for speed and accuracy
-    # X = np.array([tf.image.resize(img, (64, 64)).numpy() for img in X])
-    X = X / 255.0  # Normalize
-
-    y = data['emotion'].values  # Labels
-
-    print(f"Loaded FER2013 data: {X.shape[0]} samples.")
-    return X, y
-
-def build_balanced_cnn(input_shape, num_classes):
-    model = models.Sequential([
-        layers.Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=input_shape),
-        layers.BatchNormalization(),
-        layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
-        layers.BatchNormalization(),
-        layers.MaxPooling2D((2, 2)),
-        layers.Dropout(0.25),
-
-        layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-        layers.BatchNormalization(),
-        layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-        layers.BatchNormalization(),
-        layers.MaxPooling2D((2, 2)),
-        layers.Dropout(0.3),
-
-        layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
-        layers.BatchNormalization(),
-        layers.MaxPooling2D((2, 2)),
-        layers.Dropout(0.4),
-
-        layers.Flatten(),
-        layers.Dense(128, activation='relu'),
-        layers.BatchNormalization(),
-        layers.Dropout(0.5),
-        layers.Dense(num_classes, activation='softmax', dtype='float32')
-    ])
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    return model
-
-# Example: Hyperparameter tuning with KerasTuner
-
-def build_tuned_model(hp):
-    model = models.Sequential()
-    model.add(layers.Conv2D(
-        hp.Int('conv1_filters', 32, 128, step=32),
-        (3, 3), activation='relu', input_shape=(64, 64, 3)))
-    model.add(layers.BatchNormalization())
-    model.add(layers.MaxPooling2D((2, 2)))
-    model.add(layers.Dropout(hp.Float('dropout1', 0.2, 0.5, step=0.1)))
-    model.add(layers.Flatten())
-    model.add(layers.Dense(
-        hp.Int('dense_units', 64, 256, step=64), activation='relu'))
-    model.add(layers.Dropout(hp.Float('dropout2', 0.2, 0.5, step=0.1)))
-    model.add(layers.Dense(7, activation='softmax'))
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(
-            hp.Choice('learning_rate', [1e-2, 1e-3, 1e-4])),
-        loss='categorical_crossentropy',
-        metrics=['accuracy'])
-    return model
-
-# To use:
-# import keras_tuner as kt
-# tuner = kt.RandomSearch(
-#     build_tuned_model,
-#     objective='val_accuracy',
-#     max_trials=5,
-#     directory='tuner_dir',
-#     project_name='emotion')
-# tuner.search(datagen.flow(X_train, y_train, batch_size=32),
-#              epochs=10, validation_data=(X_test, y_test))
-# best_model = tuner.get_best_models(1)[0]
-
-# Train and export the model
-def train_and_export_model():
-    X, y = load_data()
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    y_train = to_categorical(y_train, num_classes=7)
-    y_test = to_categorical(y_test, num_classes=7)
-
-    datagen = tf.keras.preprocessing.image.ImageDataGenerator(
-        rotation_range=20,
-        width_shift_range=0.15,
-        height_shift_range=0.15,
-        horizontal_flip=True,
-        zoom_range=0.2
-    )
-    datagen.fit(X_train)
-
-    model = build_balanced_cnn(input_shape=(48, 48, 3), num_classes=7)
-    
-    model.summary()
-
-    log_dir = "logs"
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-    early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
-
-    history = model.fit(
-        datagen.flow(X_train, y_train, batch_size=64),
-        epochs=10,
-        validation_data=(X_test, y_test),
-        callbacks=[tensorboard_callback, early_stopping]
-    )
-
-    # Optional: Plot training history
+# Configure GPU memory growth and XLA
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
     try:
-        import matplotlib.pyplot as plt
-        plt.plot(history.history['accuracy'], label='train acc')
-        plt.plot(history.history['val_accuracy'], label='val acc')
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy')
-        plt.legend()
-        plt.show()
-    except ImportError:
-        print("matplotlib not installed, skipping plot.")
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        # Enable XLA for GPU
+        tf.config.optimizer.set_jit(True)
+        # Force GPU to be used
+        tf.config.set_visible_devices(gpus[0], 'GPU')
+        print("GPU configured successfully")
+    except RuntimeError as e:
+        print("Error configuring GPU:", e)
+else:
+    print("No GPU devices found!")
 
-    # Save the model in ONNX format (workaround for Keras 3.x compatibility)
-    onnx_path = "models/emotion_model.onnx"
-    saved_model_dir = "models/emotion_saved_model"
-    model.save(saved_model_dir)  # Save as TensorFlow SavedModel
+# Verify GPU is being used
+print("\nGPU Information:")
+print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+print("Is built with CUDA: ", tf.test.is_built_with_cuda())
+print("Is GPU available: ", tf.test.is_gpu_available())
+print("GPU Device Name: ", tf.test.gpu_device_name())
 
-    # Convert SavedModel to ONNX
-    import tf2onnx
-    model_proto, _ = tf2onnx.convert.from_saved_model(
-        saved_model_dir,
-        opset=13,
-        output_path=onnx_path
+def load_fer2013():
+    print("Loading dataset...")
+    data = pd.read_csv('fer2013.csv')
+    pixels = data['pixels'].tolist()
+    width, height = 48, 48
+    
+    # Convert to numpy array more efficiently
+    faces = np.array([np.fromstring(pixel_seq, sep=' ').reshape(width, height) for pixel_seq in pixels])
+    emotions = pd.get_dummies(data['emotion']).values
+    
+    print(f"Loaded {len(faces)} images")
+    return faces, emotions
+
+def build_model():
+    model = tf.keras.Sequential([
+        # First Convolutional Block
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(48, 48, 1)),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((2, 2)),
+        
+        # Second Convolutional Block
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((2, 2)),
+        
+        # Third Convolutional Block
+        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((2, 2)),
+        
+        # Flatten and Dense Layers
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(256, activation='relu'),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(7, activation='softmax')
+    ])
+    
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+    
+    model.compile(
+        optimizer=optimizer,
+        loss='categorical_crossentropy',
+        metrics=['accuracy']
     )
-    print(f"Model saved to {onnx_path}")
+    
+    return model
 
-def predict_emotion_onnx(image_array, onnx_path="models/emotion_model.onnx"):
-    """
-    image_array: numpy array of shape (48, 48, 3), values in [0, 1]
-    Returns: predicted class index
-    """
-    # Typo fix: use 'onnxruntime', not 'onxruntime'
-    import onnxruntime as ort
-    # Preprocess: add batch dimension and convert to float32
-    img = image_array.astype(np.float32)[np.newaxis, ...]
-    ort_sess = ort.InferenceSession(onnx_path)
-    input_name = ort_sess.get_inputs()[0].name
-    preds = ort_sess.run(None, {input_name: img})[0]
-    return np.argmax(preds, axis=1)[0]
-
-# Example usage:
-# img = ... # preprocess your image to (48, 48, 3) and scale to [0, 1]
-# pred = predict_emotion_onnx(img)
-# print("Predicted emotion class:", pred)
+def train_model():
+    # Load and preprocess data
+    faces, emotions = load_fer2013()
+    faces = faces.reshape(-1, 48, 48, 1)
+    faces = faces.astype('float32') / 255.0
+    
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(
+        faces, emotions, test_size=0.2, random_state=42
+    )
+    
+    # Create tf.data.Dataset for better performance
+    train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
+    train_dataset = train_dataset.cache()  # Cache the dataset
+    train_dataset = train_dataset.shuffle(1000).batch(256).prefetch(tf.data.AUTOTUNE)
+    
+    test_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+    test_dataset = test_dataset.cache()  # Cache the dataset
+    test_dataset = test_dataset.batch(256).prefetch(tf.data.AUTOTUNE)
+    
+    # Create model
+    model = build_model()
+    
+    # Training callbacks
+    callbacks = [
+        tf.keras.callbacks.EarlyStopping(
+            monitor='val_accuracy',
+            patience=5,
+            restore_best_weights=True
+        ),
+        tf.keras.callbacks.ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=0.2,
+            patience=3,
+            min_lr=0.00001
+        ),
+        tf.keras.callbacks.ModelCheckpoint(
+            'best_model.h5',
+            monitor='val_accuracy',
+            save_best_only=True
+        )
+    ]
+    
+    # Train model
+    print("Starting training...")
+    history = model.fit(
+        train_dataset,
+        epochs=30,
+        validation_data=test_dataset,
+        callbacks=callbacks,
+        verbose=1
+    )
+    
+    # Save model in ONNX format
+    print("Saving model...")
+    import tf2onnx
+    input_signature = [tf.TensorSpec([1, 48, 48, 1], tf.float32, name="input")]
+    onnx_model, _ = tf2onnx.convert.from_keras(model, input_signature, opset=13)
+    tf2onnx.save_model(onnx_model, "models/emotion_model.onnx")
+    
+    return history
 
 if __name__ == "__main__":
-    os.makedirs("models", exist_ok=True)
-    train_and_export_model()
+    history = train_model()
+    
+    # Plot training history
+    plt.figure(figsize=(12, 4))
+    
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Training Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig('training_history.png')
+    plt.close()

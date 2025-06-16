@@ -12,20 +12,139 @@ build/
 # Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-*.pyc
-*.pdb
-*.egg-info/
-.eggs/
-*.egg
+*$py.class
+*.so
 .Python
-pip-log.txt
-pip-delete-this-directory.txt
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
 venv/
-ENV/
 env/
-.venv/
+ENV/
+.env
+.venv
+env.bak/
+venv.bak/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# ML Models and Data
+models/*.h5
+models/*.onnx
+models/*.pb
+models/*.tflite
+*.weights
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.npy
+*.npz
+*.pkl
+*.joblib
+*.csv
+*.dat
+*.data
+*.db
+*.sqlite3
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+logs/
+tensorboard/
+wandb/
+mlruns/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Documentation
+docs/_build/
+site/
+
+# Misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Keep specific model files
+!models/README.md
+!models/.gitkeep
+
+# Keep specific data files
+!data/README.md
+!data/.gitkeep
+
+# Keep specific config files
+!config/README.md
+!config/.gitkeep
 
 # macOS
 .DS_Store

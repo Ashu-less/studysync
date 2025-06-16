@@ -1,13 +1,510 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySync - Smart Study Assistant</title>
+    <!-- Material UI -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@material-ui/core@4.12.4/dist/material-ui.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <link href="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1976d2;
+            --secondary-color: #dc004e;
+            --background-color: #f5f5f5;
+            --surface-color: #ffffff;
+            --text-primary: #212121;
+            --text-secondary: #757575;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 240px;
+            background-color: var(--surface-color);
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+        }
+
+        .main-content {
+            margin-left: 240px;
+            flex: 1;
+            padding: 24px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background-color: rgba(25, 118, 210, 0.08);
+            color: var(--primary-color);
+        }
+
+        .nav-item i {
+            margin-right: 12px;
+        }
+
+        .card {
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .attention-gauge {
+            width: 200px;
+            height: 200px;
+            position: relative;
+        }
+
+        .emotion-bar {
+            height: 20px;
+            border-radius: 10px;
+            transition: width 0.3s ease-in-out;
+        }
+
+        .break-notification {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary-color), #2196f3);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 500;
+            margin: 8px 0;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background-color: var(--surface-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div style="padding: 24px;">
+                <h2 style="margin: 0; color: var(--primary-color);">StudySync</h2>
+            </div>
+            <a href="#dashboard" class="nav-item active">
+                <i class="material-icons">dashboard</i>
+                Dashboard
+            </a>
+            <a href="#focus" class="nav-item">
+                <i class="material-icons">psychology</i>
+                Focus Tracking
+            </a>
+            <a href="#analytics" class="nav-item">
+                <i class="material-icons">insights</i>
+                Analytics
+            </a>
+            <a href="#schedule" class="nav-item">
+                <i class="material-icons">schedule</i>
+                Study Schedule
+            </a>
+            <a href="#goals" class="nav-item">
+                <i class="material-icons">flag</i>
+                Goals
+            </a>
+            <a href="#resources" class="nav-item">
+                <i class="material-icons">menu_book</i>
+                Resources
+            </a>
+            <a href="#settings" class="nav-item">
+                <i class="material-icons">settings</i>
+                Settings
+            </a>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <h1 style="margin: 0;">Dashboard</h1>
+                <div class="user-profile">
+                    <span>Welcome, User</span>
+                    <div class="avatar">U</div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="grid-container">
+                <div class="stat-card">
+                    <h3>Today's Focus Score</h3>
+                    <div class="value" id="todayFocus">85%</div>
+                    <div>↑ 5% from yesterday</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Study Time</h3>
+                    <div class="value" id="studyTime">2.5h</div>
+                    <div>Goal: 4h</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Break Time</h3>
+                    <div class="value" id="breakTime">30m</div>
+                    <div>Optimal breaks taken</div>
+                </div>
+            </div>
+
+            <!-- Focus Tracking Section -->
+            <div class="card">
+                <h2>Focus Tracking</h2>
+                <div style="display: flex; gap: 24px; align-items: center;">
+                    <div class="attention-gauge">
+                        <canvas id="attentionGauge"></canvas>
+                    </div>
+                    <div style="flex: 1;">
+                        <h3>Current Attention Score</h3>
+                        <p id="attentionScore">Calculating...</p>
+                        <div id="emotionBars" class="space-y-2">
+                            <!-- Emotion bars will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+                <div id="breakNotification" class="break-notification" style="display: none; margin-top: 16px;">
+                    <div style="background-color: #fff3cd; padding: 12px; border-radius: 4px; display: flex; align-items: center; gap: 12px;">
+                        <i class="material-icons" style="color: #856404;">warning</i>
+                        <span>Your attention is decreasing. Consider taking a short break!</span>
+                    </div>
+                </div>
+                <div style="margin-top: 24px; display: flex; gap: 12px;">
+                    <button id="startSession" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored">
+                        Start Session
+                    </button>
+                    <button id="endSession" class="mdl-button mdl-js-button mdl-button--raised" disabled>
+                        End Session
+                    </button>
+                </div>
+            </div>
+
+            <!-- Analytics Section -->
+            <div class="card">
+                <h2>Attention Trend</h2>
+                <canvas id="attentionChart" height="200"></canvas>
+            </div>
+
+            <!-- Session Summary -->
+            <div id="sessionSummary" class="card" style="display: none;">
+                <h2>Session Summary</h2>
+                <div class="grid-container">
+                    <div class="stat-card">
+                        <h3>Total Duration</h3>
+                        <div class="value" id="totalDuration">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Average Attention</h3>
+                        <div class="value" id="avgAttention">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Recommended Break</h3>
+                        <div class="value" id="recommendedBreak">--</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@material-ui/core@4.12.4/dist/material-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <script>
+        // Initialize variables
+        let currentSessionId = null;
+        let attentionChart = null;
+        let attentionGauge = null;
+        let emotionBars = {};
+        const emotionColors = {
+            neutral: '#4B5563',
+            happy: '#10B981',
+            surprise: '#F59E0B',
+            fear: '#EF4444',
+            sad: '#3B82F6',
+            angry: '#DC2626',
+            disgust: '#7C3AED'
+        };
+
+        // Initialize charts
+        function initCharts() {
+            // Attention Gauge
+            const gaugeCtx = document.getElementById('attentionGauge').getContext('2d');
+            attentionGauge = new Chart(gaugeCtx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor: ['#1976d2', '#E5E7EB'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    circumference: 180,
+                    rotation: -90,
+                    cutout: '80%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+
+            // Attention Trend Chart
+            const trendCtx = document.getElementById('attentionChart').getContext('2d');
+            attentionChart = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Attention Score',
+                        data: [],
+                        borderColor: '#1976d2',
+                        tension: 0.4,
+                        fill: false
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update attention gauge
+        function updateAttentionGauge(score) {
+            attentionGauge.data.datasets[0].data = [score, 100 - score];
+            attentionGauge.update();
+            document.getElementById('attentionScore').textContent = `Attention Score: ${Math.round(score)}`;
+        }
+
+        // Update emotion bars
+        function updateEmotionBars(emotions) {
+            const container = document.getElementById('emotionBars');
+            container.innerHTML = '';
+
+            Object.entries(emotions).forEach(([emotion, value]) => {
+                const percentage = Math.round(value * 100);
+                const bar = document.createElement('div');
+                bar.className = 'flex items-center space-x-2';
+                bar.innerHTML = `
+                    <span style="width: 80px;">${emotion}</span>
+                    <div style="flex: 1; height: 8px; background-color: #E5E7EB; border-radius: 4px; overflow: hidden;">
+                        <div class="emotion-bar" style="width: ${percentage}%; background-color: ${emotionColors[emotion]}"></div>
+                    </div>
+                    <span style="width: 48px; text-align: right;">${percentage}%</span>
+                `;
+                container.appendChild(bar);
+            });
+        }
+
+        // Update attention trend
+        function updateAttentionTrend(timestamp, score) {
+            const time = new Date(timestamp).toLocaleTimeString();
+            attentionChart.data.labels.push(time);
+            attentionChart.data.datasets[0].data.push(score);
+            
+            if (attentionChart.data.labels.length > 20) {
+                attentionChart.data.labels.shift();
+                attentionChart.data.datasets[0].data.shift();
+            }
+            
+            attentionChart.update();
+        }
+
+        // Update session summary
+        function updateSessionSummary(data) {
+            document.getElementById('sessionSummary').style.display = 'block';
+            document.getElementById('totalDuration').textContent = `${Math.round(data.total_duration)} min`;
+            document.getElementById('avgAttention').textContent = `${Math.round(data.average_attention_score)}%`;
+            document.getElementById('recommendedBreak').textContent = `${data.recommended_break_duration} min`;
+        }
+
+        // Handle break recommendation
+        function handleBreakRecommendation(recommended) {
+            const notification = document.getElementById('breakNotification');
+            notification.style.display = recommended ? 'block' : 'none';
+        }
+
+        // Start session
+        document.getElementById('startSession').addEventListener('click', async () => {
+            const response = await fetch('http://localhost:8000/start_session/', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            currentSessionId = data.session_id;
+            
+            document.getElementById('startSession').disabled = true;
+            document.getElementById('endSession').disabled = false;
+            
+            // Start periodic focus analysis
+            startFocusAnalysis();
+        });
+
+        // End session
+        document.getElementById('endSession').addEventListener('click', async () => {
+            if (!currentSessionId) return;
+            
+            await fetch(`http://localhost:8000/end_session/${currentSessionId}`, {
+                method: 'POST'
+            });
+            
+            // Get final session metrics
+            const response = await fetch(`http://localhost:8000/session_metrics/${currentSessionId}`);
+            const data = await response.json();
+            updateSessionSummary(data);
+            
+            document.getElementById('startSession').disabled = false;
+            document.getElementById('endSession').disabled = true;
+            currentSessionId = null;
+            
+            // Stop periodic focus analysis
+            stopFocusAnalysis();
+        });
+
+        // Periodic focus analysis
+        let analysisInterval = null;
+
+        function startFocusAnalysis() {
+            analysisInterval = setInterval(async () => {
+                if (!currentSessionId) return;
+                
+                try {
+                    // Capture webcam image
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    await video.play();
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0);
+                    
+                    // Convert to blob
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
+                    
+                    // Stop webcam
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    // Send to backend
+                    const formData = new FormData();
+                    formData.append('file', blob);
+                    
+                    const response = await fetch(`http://localhost:8000/analyze_focus/?session_id=${currentSessionId}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    // Update UI
+                    updateAttentionGauge(result.attention_score);
+                    updateEmotionBars(result.emotions);
+                    updateAttentionTrend(new Date(), result.attention_score);
+                    handleBreakRecommendation(result.break_recommended);
+                    
+                } catch (error) {
+                    console.error('Error analyzing focus:', error);
+                }
+            }, 5000); // Analyze every 5 seconds
+        }
+
+        function stopFocusAnalysis() {
+            if (analysisInterval) {
+                clearInterval(analysisInterval);
+                analysisInterval = null;
+            }
+        }
+
+        // Initialize
+        initCharts();
+
+        // Navigation handling
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.nav-item').forEach(navItem => {
+                    navItem.classList.remove('active');
+                });
+                item.classList.add('active');
+                // Here you would typically load the corresponding content
+            });
+        });
+    </script>
+</body>
 </html>
