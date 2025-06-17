@@ -5,35 +5,21 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import os
 
-# Set environment variables
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'  # Show all logs
+# Set environment variables for better performance
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Reduce logging
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # Use first GPU
 
-# Enable mixed precision
-tf.keras.mixed_precision.set_global_policy('mixed_float16')
-
-# Configure GPU memory growth and XLA
+# Configure GPU memory growth
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     try:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
-        # Enable XLA for GPU
-        tf.config.optimizer.set_jit(True)
-        # Force GPU to be used
-        tf.config.set_visible_devices(gpus[0], 'GPU')
         print("GPU configured successfully")
     except RuntimeError as e:
         print("Error configuring GPU:", e)
 else:
     print("No GPU devices found!")
-
-# Verify GPU is being used
-print("\nGPU Information:")
-print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
-print("Is built with CUDA: ", tf.test.is_built_with_cuda())
-print("Is GPU available: ", tf.test.is_gpu_available())
-print("GPU Device Name: ", tf.test.gpu_device_name())
 
 def load_fer2013():
     print("Loading dataset...")
@@ -41,34 +27,28 @@ def load_fer2013():
     pixels = data['pixels'].tolist()
     width, height = 48, 48
     
-    # Convert to numpy array more efficiently
-    faces = np.array([np.fromstring(pixel_seq, sep=' ').reshape(width, height) for pixel_seq in pixels])
+    # More efficient conversion
+    faces = np.array([np.fromstring(pixel_seq, sep=' ', dtype=np.uint8).reshape(width, height) for pixel_seq in pixels])
     emotions = pd.get_dummies(data['emotion']).values
     
     print(f"Loaded {len(faces)} images")
     return faces, emotions
 
-def build_model():
+def build_optimized_model():
     model = tf.keras.Sequential([
-        # First Convolutional Block
+        # Simplified architecture for faster training
         tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(48, 48, 1)),
-        tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling2D((2, 2)),
         
-        # Second Convolutional Block
         tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-        tf.keras.layers.BatchNormalization(),
         tf.keras.layers.MaxPooling2D((2, 2)),
         
-        # Third Convolutional Block
-        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
-        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
         tf.keras.layers.MaxPooling2D((2, 2)),
         
-        # Flatten and Dense Layers
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(256, activation='relu'),
-        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.3),
         tf.keras.layers.Dense(7, activation='softmax')
     ])
     
@@ -93,29 +73,29 @@ def train_model():
         faces, emotions, test_size=0.2, random_state=42
     )
     
-    # Create tf.data.Dataset for better performance
+    # Create tf.data.Dataset with smaller batch size for better performance
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
-    train_dataset = train_dataset.cache()  # Cache the dataset
-    train_dataset = train_dataset.shuffle(1000).batch(256).prefetch(tf.data.AUTOTUNE)
+    train_dataset = train_dataset.cache()
+    train_dataset = train_dataset.shuffle(1000).batch(64).prefetch(tf.data.AUTOTUNE)
     
     test_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test))
-    test_dataset = test_dataset.cache()  # Cache the dataset
-    test_dataset = test_dataset.batch(256).prefetch(tf.data.AUTOTUNE)
+    test_dataset = test_dataset.cache()
+    test_dataset = test_dataset.batch(64).prefetch(tf.data.AUTOTUNE)
     
     # Create model
-    model = build_model()
+    model = build_optimized_model()
     
     # Training callbacks
     callbacks = [
         tf.keras.callbacks.EarlyStopping(
             monitor='val_accuracy',
-            patience=5,
+            patience=3,
             restore_best_weights=True
         ),
         tf.keras.callbacks.ReduceLROnPlateau(
             monitor='val_loss',
-            factor=0.2,
-            patience=3,
+            factor=0.5,
+            patience=2,
             min_lr=0.00001
         ),
         tf.keras.callbacks.ModelCheckpoint(
@@ -129,18 +109,35 @@ def train_model():
     print("Starting training...")
     history = model.fit(
         train_dataset,
-        epochs=30,
+        epochs=20,  # Reduced epochs
         validation_data=test_dataset,
         callbacks=callbacks,
         verbose=1
     )
     
-    # Save model in ONNX format
+    # Save model (H5 format only for now)
     print("Saving model...")
-    import tf2onnx
-    input_signature = [tf.TensorSpec([1, 48, 48, 1], tf.float32, name="input")]
-    onnx_model, _ = tf2onnx.convert.from_keras(model, input_signature, opset=13)
-    tf2onnx.save_model(onnx_model, "models/emotion_model.onnx")
+    # Create models directory if it doesn't exist
+    os.makedirs("models", exist_ok=True)
+    
+    # Save in H5 format (more reliable than ONNX for this TensorFlow version)
+    model.save('models/emotion_model.h5')
+    print("Model saved successfully in H5 format!")
+    
+    # Try ONNX conversion with error handling
+    try:
+        import tf2onnx
+        input_signature = [tf.TensorSpec([1, 48, 48, 1], tf.float32, name="input")]
+        onnx_model, _ = tf2onnx.convert.from_keras(model, input_signature, opset=13)
+        
+        # Save the ONNX model
+        with open("models/emotion_model.onnx", "wb") as f:
+            f.write(onnx_model.SerializeToString())
+        print("ONNX model also saved successfully!")
+        
+    except Exception as e:
+        print(f"Warning: Could not save ONNX model: {e}")
+        print("Model is available in H5 format only.")
     
     return history
 
