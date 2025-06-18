@@ -6,7 +6,7 @@ import SignIn from "./SignIn";
 import SignUp from "./SignUp";
 
 // Material UI
-import { AppBar, Toolbar, Typography, Button, Container, Grid, Paper, Box, CircularProgress } from "@mui/material";
+import { AppBar, Toolbar, Typography, Button, Container, Grid, Paper, Box, CircularProgress, Chip, Alert } from "@mui/material";
 
 function Feature({ icon, title, desc }) {
   return (
@@ -18,13 +18,77 @@ function Feature({ icon, title, desc }) {
   );
 }
 
-function FocusFeedback({ focused }) {
-  if (focused === null) return null;
+function FocusFeedback({ focused, emotion, emotionConfidence }) {
+  if (focused === null && !emotion) return null;
+  
   return (
-    <Typography variant="body1" align="center" sx={{ mt: 2, color: focused ? 'green' : 'red', fontWeight: 'bold' }}>
-      {focused ? "You are focused!" : "Please look at the screen"}
-    </Typography>
+    <Box sx={{ mt: 2, textAlign: 'center' }}>
+      {focused !== null && (
+        <Typography variant="body1" sx={{ 
+          color: focused ? 'green' : 'red', 
+          fontWeight: 'bold',
+          mb: emotion ? 1 : 0
+        }}>
+          {focused ? "You are focused!" : "Please look at the screen"}
+        </Typography>
+      )}
+      
+      {emotion && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
+          <Chip 
+            label={`${emotion} (${(emotionConfidence * 100).toFixed(1)}%)`}
+            color={getEmotionColor(emotion)}
+            variant="outlined"
+            sx={{ fontWeight: 'bold' }}
+          />
+          {getEmotionAdvice(emotion) && (
+            <Alert severity={getEmotionSeverity(emotion)} sx={{ mt: 1, maxWidth: 400 }}>
+              {getEmotionAdvice(emotion)}
+            </Alert>
+          )}
+        </Box>
+      )}
+    </Box>
   );
+}
+
+function getEmotionColor(emotion) {
+  const colors = {
+    'neutral': 'success',
+    'happy': 'success', 
+    'surprise': 'info',
+    'sad': 'warning',
+    'angry': 'error',
+    'fear': 'error',
+    'disgust': 'error'
+  };
+  return colors[emotion] || 'default';
+}
+
+function getEmotionSeverity(emotion) {
+  const severities = {
+    'neutral': 'success',
+    'happy': 'success',
+    'surprise': 'info', 
+    'sad': 'warning',
+    'angry': 'error',
+    'fear': 'error',
+    'disgust': 'error'
+  };
+  return severities[emotion] || 'info';
+}
+
+function getEmotionAdvice(emotion) {
+  const advice = {
+    'neutral': 'Perfect! You\'re in an ideal focused state for studying.',
+    'happy': 'Great! You\'re engaged and enjoying your study session.',
+    'surprise': 'Interesting! You might be learning something new.',
+    'sad': 'Consider taking a short break or switching to a different topic.',
+    'angry': 'Take a deep breath. Maybe step away for a few minutes.',
+    'fear': 'Don\'t worry! Break down the problem into smaller steps.',
+    'disgust': 'Try a different approach or study environment.'
+  };
+  return advice[emotion];
 }
 
 function RequireAuth({ children }) {
@@ -65,6 +129,9 @@ function RedirectIfAuth({ children }) {
 function Layout() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [focused, setFocused] = useState(null);
+  const [emotion, setEmotion] = useState(null);
+  const [emotionConfidence, setEmotionConfidence] = useState(0);
+  const [emotionHistory, setEmotionHistory] = useState([]);
   const webcamRef = useRef(null);
   const navigate = useNavigate();
   const [user, setUser] = useState(() => auth.currentUser);
@@ -83,9 +150,10 @@ function Layout() {
         if (webcamRef.current) {
           const imageSrc = webcamRef.current.getScreenshot();
           if (imageSrc) {
-            const blob = await (await fetch(imageSrc)).blob();
-            const file = new File([blob], "screenshot.jpg", { type: "image/jpeg" });
+            // Try focus detection (existing endpoint)
             try {
+              const blob = await (await fetch(imageSrc)).blob();
+              const file = new File([blob], "screenshot.jpg", { type: "image/jpeg" });
               const res = await fetch("http://127.0.0.1:8000/analyze_focus/", {
                 method: "POST",
                 body: (() => {
@@ -98,6 +166,34 @@ function Layout() {
               setFocused(data.focused);
             } catch {
               setFocused(null);
+            }
+
+            // Try emotion detection (new endpoint)
+            try {
+              const emotionRes = await fetch("http://localhost:5001/predict_emotion", {
+                method: "POST",
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  image: imageSrc
+                })
+              });
+              
+              if (emotionRes.ok) {
+                const emotionData = await emotionRes.json();
+                setEmotion(emotionData.emotion);
+                setEmotionConfidence(emotionData.confidence);
+                
+                // Add to history
+                setEmotionHistory(prev => [...prev.slice(-9), {
+                  emotion: emotionData.emotion,
+                  confidence: emotionData.confidence,
+                  timestamp: new Date().toLocaleTimeString()
+                }]);
+              }
+            } catch (error) {
+              console.log("Emotion detection not available:", error.message);
             }
           }
         }
@@ -140,13 +236,31 @@ function Layout() {
           <Grid item xs={12} md={6}>
             <Typography variant="h3" gutterBottom>Enhance Your Focus. <span style={{ background: 'linear-gradient(to right, #38bdf8, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Master Your Code.</span></Typography>
             <Typography variant="body1" color="gray" paragraph>
-              Leverage AI-powered camera detection to maintain concentration during deep work and study sessions.
+              Leverage AI-powered camera detection to maintain concentration and track emotional states during deep work and study sessions.
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-              <Button variant="contained" onClick={() => setIsSessionActive(true)}>Try Focus Detector</Button>
-              <Button variant="outlined">Learn More</Button>
+              <Button variant="contained" onClick={() => setIsSessionActive(true)}>Start Session</Button>
+              <Button variant="outlined" onClick={() => setIsSessionActive(false)}>Stop Session</Button>
             </Box>
-            <FocusFeedback focused={focused} />
+            <FocusFeedback focused={focused} emotion={emotion} emotionConfidence={emotionConfidence} />
+            
+            {/* Emotion History */}
+            {emotionHistory.length > 0 && (
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" gutterBottom>Recent Emotions:</Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {emotionHistory.map((entry, index) => (
+                    <Chip
+                      key={index}
+                      label={`${entry.emotion} (${entry.timestamp})`}
+                      size="small"
+                      color={getEmotionColor(entry.emotion)}
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
           </Grid>
           <Grid item xs={12} md={6}>
             <Paper sx={{ border: '4px solid #1e40af', borderRadius: 4, overflow: 'hidden', height: 240, backgroundColor: '#23263a' }}>
@@ -163,8 +277,9 @@ function Layout() {
           <Typography variant="h4" align="center" gutterBottom>Why Choose StudySync?</Typography>
           <Grid container spacing={4} mt={3}>
             <Feature icon="🎯" title="Enhanced Focus" desc="AI-powered detection helps you stay on track." />
+            <Feature icon="😊" title="Emotion Tracking" desc="Monitor your emotional state during study sessions." />
             <Feature icon="⚡" title="Real-time Feedback" desc="Instant alerts notify you when your concentration drifts." />
-            <Feature icon="📈" title="Progress Tracking" desc="Track focus levels and trends over time." />
+            <Feature icon="📈" title="Progress Tracking" desc="Track focus levels and emotional trends over time." />
           </Grid>
         </Box>
       </Container>
