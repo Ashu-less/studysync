@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import onnxruntime
+import tensorflow as tf
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
 
@@ -8,8 +8,8 @@ from typing import Dict, List, Tuple, Optional
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
 # Load emotion detection model
-emotion_model_path = "models/emotion_model.onnx"
-emotion_session = onnxruntime.InferenceSession(emotion_model_path)
+emotion_model_path = "models/emotion_model.h5"
+emotion_model = tf.keras.models.load_model(emotion_model_path)
 
 # Emotion labels
 emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
@@ -18,10 +18,12 @@ def preprocess_face(face_img: np.ndarray) -> np.ndarray:
     """Preprocess face image for emotion detection."""
     # Resize to model input size
     face_img = cv2.resize(face_img, (48, 48))
-    # Convert to RGB
-    face_img = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)
+    # Convert to grayscale
+    face_img = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
     # Normalize
     face_img = face_img.astype(np.float32) / 255.0
+    # Add channel dimension
+    face_img = np.expand_dims(face_img, axis=-1)
     # Add batch dimension
     face_img = np.expand_dims(face_img, axis=0)
     return face_img
@@ -99,10 +101,8 @@ def is_focused_and_emotion(image_data: bytes) -> Dict:
     # Preprocess face for emotion detection
     processed_face = preprocess_face(face_img)
     
-    # Get emotion predictions
-    input_name = emotion_session.get_inputs()[0].name
-    output_name = emotion_session.get_outputs()[0].name
-    emotion_pred = emotion_session.run([output_name], {input_name: processed_face})[0]
+    # Get emotion predictions using TensorFlow
+    emotion_pred = emotion_model.predict(processed_face, verbose=0)
     
     # Convert predictions to dictionary
     emotions = {label: float(prob) for label, prob in zip(emotion_labels, emotion_pred[0])}
