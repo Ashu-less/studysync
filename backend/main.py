@@ -139,3 +139,10 @@ def get_session_metrics(session_id: int, db: Session = Depends(get_db)):
             for m in metrics
         ]
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    print("🚀 Starting Focus Detection Server...")
+    print("📊 API will be available at: http://127.0.0.1:8000")
+    print("📖 API docs at: http://127.0.0.1:8000/docs")
+    uvicorn.run(app, host="127.0.0.1", port=8000)
