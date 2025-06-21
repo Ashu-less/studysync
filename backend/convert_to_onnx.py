@@ -12,14 +12,11 @@ def convert_h5_to_onnx():
     print("Converting to ONNX...")
     
     # Define input signature for ONNX conversion
-    input_signature = [tf.TensorSpec([1, 48, 48, 1], tf.float32, name="input")]
+    spec = (tf.TensorSpec((None, 48, 48, 1), tf.float32, name="input"),)
     
     # Convert to ONNX
-    onnx_model, _ = tf2onnx.convert.from_keras(model, input_signature, opset=13)
-    
-    # Save the ONNX model
-    with open("models/emotion_model.onnx", "wb") as f:
-        f.write(onnx_model.SerializeToString())
+    output_path = 'models/emotion_model.onnx'
+    model_proto, _ = tf2onnx.convert.from_keras(model, input_signature=spec, output_path=output_path)
     
     print("ONNX model saved successfully at models/emotion_model.onnx!")
 

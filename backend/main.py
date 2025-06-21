@@ -30,7 +30,7 @@ def get_db():
 
 @app.post("/start_session/")
 def start_session(db: Session = Depends(get_db)):
-    session = models.StudySession()
+    session = models.StudySession(user_id="user1", start_time=datetime.utcnow())
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -67,49 +67,18 @@ def end_session(session_id: int, db: Session = Depends(get_db)):
     return {"message": "Session ended successfully"}
 
 @app.post("/analyze_focus/")
-async def analyze_focus(file: UploadFile = File(...), session_id: int = None, db: Session = Depends(get_db)):
-    content = await file.read()
-    result = is_focused_and_emotion(content)
+async def analyze_focus(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    image_data = await file.read()
+    result = is_focused_and_emotion(image_data)
     
-    if session_id:
-        # Log focus and emotions
-        log = models.FocusLog(
-            session_id=session_id,
-            focused=result["focused"],
-            emotions=result["emotions"],
-            attention_score=result["attention_score"]
-        )
-        db.add(log)
-        
-        # Get attention history for break recommendation
-        attention_history = [
-            (log.timestamp, log.attention_score)
-            for log in db.query(models.FocusLog)
-            .filter(models.FocusLog.session_id == session_id)
-            .order_by(models.FocusLog.timestamp.desc())
-            .limit(50)
-            .all()
-        ]
-        
-        # Update break recommendation
-        result["break_recommended"] = should_recommend_break(
-            attention_history,
-            datetime.utcnow()
-        )
-        
-        # Update attention metrics
-        metric = models.AttentionMetric(
-            session_id=session_id,
-            attention_score=result["attention_score"],
-            dominant_emotion=max(result["emotions"].items(), key=lambda x: x[1])[0],
-            emotion_confidence=max(result["emotions"].values()),
-            focus_duration=5.0,  # 5-minute intervals
-            break_recommended=result["break_recommended"]
-        )
-        db.add(metric)
-        db.commit()
+    # Placeholder for logging logic.
+    # In a real app, you'd find the current session and log to it.
     
-    return result
+    return {
+        "focused": result["focused"],
+        "attention_score": result["attention_score"],
+        "study_state": result["study_state"]
+    }
 
 @app.get("/session_metrics/{session_id}")
 def get_session_metrics(session_id: int, db: Session = Depends(get_db)):
@@ -138,6 +107,32 @@ def get_session_metrics(session_id: int, db: Session = Depends(get_db)):
             }
             for m in metrics
         ]
+    }
+
+@app.post("/log_focus_emotion/")
+def log_focus_emotion(image_data: bytes, db: Session = Depends(get_db)):
+    result = is_focused_and_emotion(image_data)
+    now = datetime.utcnow()
+    # This logic needs to be revisited to use an existing session_id
+    session = models.StudySession(user_id="user1", start_time=now, end_time=None)
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+
+    record = models.AttentionRecord(
+        session_id=session.id,
+        timestamp=now,
+        emotions=result["emotions"],
+        attention_score=result["attention_score"]
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    
+    return {
+        "session_id": session.id, 
+        "attention_score": result["attention_score"],
+        "study_state": result["study_state"]
     }
 
 if __name__ == "__main__":

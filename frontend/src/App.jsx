@@ -4,9 +4,11 @@ import Webcam from "react-webcam";
 import { auth } from "./firebase";
 import SignIn from "./SignIn";
 import SignUp from "./SignUp";
-
-// Material UI
-import { AppBar, Toolbar, Typography, Button, Container, Grid, Paper, Box, CircularProgress, Chip, Alert } from "@mui/material";
+import { AppBar, Toolbar, Typography, Button, Container, Grid, Paper, Box, CircularProgress, Chip, Alert, Tabs, Tab, IconButton } from "@mui/material";
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import HomePage from "./pages/HomePage";
+import FocusPage from "./pages/FocusPage";
+import HistoryPage from "./pages/HistoryPage";
 
 function Feature({ icon, title, desc }) {
   return (
@@ -126,85 +128,15 @@ function RedirectIfAuth({ children }) {
   return children;
 }
 
-function Layout() {
-  const [isSessionActive, setIsSessionActive] = useState(false);
-  const [focused, setFocused] = useState(null);
-  const [emotion, setEmotion] = useState(null);
-  const [emotionConfidence, setEmotionConfidence] = useState(0);
-  const [emotionHistory, setEmotionHistory] = useState([]);
-  const webcamRef = useRef(null);
+function Layout({ children }) {
+  const [tab, setTab] = React.useState(0);
   const navigate = useNavigate();
-  const [user, setUser] = useState(() => auth.currentUser);
 
-  useEffect(() => {
-    const unsub = auth.onAuthStateChanged(u => {
-      setUser(u);
-    });
-    return unsub;
-  }, []);
-
-  useEffect(() => {
-    let interval;
-    if (isSessionActive) {
-      interval = setInterval(async () => {
-        if (webcamRef.current) {
-          const imageSrc = webcamRef.current.getScreenshot();
-          if (imageSrc) {
-            // Try focus detection (existing endpoint)
-            try {
-              const blob = await (await fetch(imageSrc)).blob();
-              const file = new File([blob], "screenshot.jpg", { type: "image/jpeg" });
-              const res = await fetch("http://127.0.0.1:8000/analyze_focus/", {
-                method: "POST",
-                body: (() => {
-                  const fd = new FormData();
-                  fd.append("file", file);
-                  return fd;
-                })(),
-              });
-              const data = await res.json();
-              setFocused(data.focused);
-            } catch {
-              setFocused(null);
-            }
-
-            // Try emotion detection (new endpoint)
-            try {
-              const emotionRes = await fetch("http://localhost:5001/predict_emotion", {
-                method: "POST",
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  image: imageSrc
-                })
-              });
-              
-              if (emotionRes.ok) {
-                const emotionData = await emotionRes.json();
-                setEmotion(emotionData.emotion);
-                setEmotionConfidence(emotionData.confidence);
-                
-                // Add to history
-                setEmotionHistory(prev => [...prev.slice(-9), {
-                  emotion: emotionData.emotion,
-                  confidence: emotionData.confidence,
-                  timestamp: new Date().toLocaleTimeString()
-                }]);
-              }
-            } catch (error) {
-              console.log("Emotion detection not available:", error.message);
-            }
-          }
-        }
-      }, 3000);
-    }
-    return () => clearInterval(interval);
-  }, [isSessionActive]);
-
-  const handleSignOut = async () => {
-    await auth.signOut();
-    navigate("/signin");
+  const handleTabChange = (event, newValue) => {
+    setTab(newValue);
+    if (newValue === 0) navigate("/");
+    if (newValue === 1) navigate("/focus");
+    if (newValue === 2) navigate("/history");
   };
 
   return (
@@ -212,81 +144,25 @@ function Layout() {
       <AppBar position="sticky" sx={{ background: 'linear-gradient(to bottom, #1e293b, #181a29)' }}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f4da.png" alt="logo" width={40} />
+            <IconButton color="inherit" edge="start" sx={{ mr: 1 }}>
+              <CameraAltIcon />
+            </IconButton>
             <Typography variant="h6" sx={{ fontWeight: 'bold' }}>StudySync</Typography>
           </Box>
-          <Box sx={{ display: 'flex', gap: 3 }}>
-            {user ? (
-              <>
-                <Typography>{user.email}</Typography>
-                <Button color="error" variant="contained" onClick={handleSignOut}>Sign Out</Button>
-              </>
-            ) : (
-              <>
-                <Button variant="contained" onClick={() => navigate("/signin")}>Sign In</Button>
-                <Button color="error" variant="contained" onClick={() => navigate("/signup")}>Sign Up</Button>
-              </>
-            )}
+          <Tabs value={tab} onChange={handleTabChange} textColor="inherit" indicatorColor="secondary">
+            <Tab label="Home" />
+            <Tab label="Focus" />
+            <Tab label="History" />
+          </Tabs>
+          <Box>
+            <Button color="inherit" onClick={() => navigate("/signin")}>Sign In</Button>
+            <Button color="error" variant="contained" onClick={() => navigate("/signup")}>Sign Up</Button>
           </Box>
         </Toolbar>
       </AppBar>
-
-      <Container sx={{ py: 6 }}>
-        <Grid container spacing={4} alignItems="center">
-          <Grid item xs={12} md={6}>
-            <Typography variant="h3" gutterBottom>Enhance Your Focus. <span style={{ background: 'linear-gradient(to right, #38bdf8, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Master Your Code.</span></Typography>
-            <Typography variant="body1" color="gray" paragraph>
-              Leverage AI-powered camera detection to maintain concentration and track emotional states during deep work and study sessions.
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-              <Button variant="contained" onClick={() => setIsSessionActive(true)}>Start Session</Button>
-              <Button variant="outlined" onClick={() => setIsSessionActive(false)}>Stop Session</Button>
-            </Box>
-            <FocusFeedback focused={focused} emotion={emotion} emotionConfidence={emotionConfidence} />
-            
-            {/* Emotion History */}
-            {emotionHistory.length > 0 && (
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="h6" gutterBottom>Recent Emotions:</Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {emotionHistory.map((entry, index) => (
-                    <Chip
-                      key={index}
-                      label={`${entry.emotion} (${entry.timestamp})`}
-                      size="small"
-                      color={getEmotionColor(entry.emotion)}
-                      variant="outlined"
-                    />
-                  ))}
-                </Box>
-              </Box>
-            )}
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ border: '4px solid #1e40af', borderRadius: 4, overflow: 'hidden', height: 240, backgroundColor: '#23263a' }}>
-              <Webcam
-                ref={webcamRef}
-                screenshotFormat="image/jpeg"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', filter: isSessionActive ? "none" : "grayscale(1) blur(2px)" }}
-              />
-            </Paper>
-          </Grid>
-        </Grid>
-
-        <Box mt={10}>
-          <Typography variant="h4" align="center" gutterBottom>Why Choose StudySync?</Typography>
-          <Grid container spacing={4} mt={3}>
-            <Feature icon="🎯" title="Enhanced Focus" desc="AI-powered detection helps you stay on track." />
-            <Feature icon="😊" title="Emotion Tracking" desc="Monitor your emotional state during study sessions." />
-            <Feature icon="⚡" title="Real-time Feedback" desc="Instant alerts notify you when your concentration drifts." />
-            <Feature icon="📈" title="Progress Tracking" desc="Track focus levels and emotional trends over time." />
-          </Grid>
-        </Box>
+      <Container>
+        {children}
       </Container>
-
-      <Box sx={{ mt: 10, py: 4, textAlign: 'center', borderTop: '1px solid #1e3a8a', backgroundColor: '#181a29' }}>
-        <Typography variant="body2" color="gray">&copy; {new Date().getFullYear()} StudySync — All rights reserved.</Typography>
-      </Box>
     </Box>
   );
 }
@@ -295,17 +171,27 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <Layout />
-            </RequireAuth>
-          }
-        />
-        <Route path="/signin" element={<RedirectIfAuth><SignIn /></RedirectIfAuth>} />
-        <Route path="/signup" element={<RedirectIfAuth><SignUp /></RedirectIfAuth>} />
+        <Route path="/" element={<Layout><HomePage /></Layout>} />
+        <Route path="/focus" element={<Layout><FocusPage /></Layout>} />
+        <Route path="/history" element={<Layout><HistoryPage /></Layout>} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   );
+}
+
+// --- Helper for mapping emotion to study state ---
+export function mapEmotionToStudyState(emotion) {
+  const mapping = {
+    angry: 'Frustrated',
+    disgust: 'Frustrated',
+    fear: 'Anxious / Overwhelmed',
+    sad: 'Anxious / Overwhelmed',
+    neutral: 'Zoned Out / Passive',
+    happy: 'Motivated / Engaged',
+    surprise: 'Distracted / Alert',
+  };
+  return mapping[emotion] || 'Unknown';
 }

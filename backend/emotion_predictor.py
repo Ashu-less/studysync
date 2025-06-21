@@ -3,57 +3,59 @@ import numpy as np
 import cv2
 from PIL import Image
 import os
+from typing import Dict
 
 class EmotionPredictor:
-    def __init__(self, model_path='models/emotion_model.h5'):
+    def __init__(self, model_path: str):
         """Initialize the emotion predictor with the trained model"""
         self.model = tf.keras.models.load_model(model_path)
-        self.emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
+        self.labels = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
         
-    def preprocess_image(self, image):
+    def preprocess(self, img: np.ndarray) -> np.ndarray:
         """Preprocess image for emotion prediction"""
         # Convert to grayscale if needed
-        if len(image.shape) == 3:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        if len(img.shape) == 3 and img.shape[2] == 3:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
         # Resize to 48x48
-        image = cv2.resize(image, (48, 48))
+        img = cv2.resize(img, (48, 48))
         
         # Normalize
-        image = image.astype('float32') / 255.0
+        img = img.astype(np.float32) / 255.0
         
         # Add batch and channel dimensions
-        image = np.expand_dims(image, axis=[0, -1])
+        img = np.expand_dims(img, axis=-1)
+        img = np.expand_dims(img, axis=0)
         
-        return image
+        return img
     
-    def predict_emotion(self, image):
+    def predict(self, img: np.ndarray) -> Dict:
         """Predict emotion from image"""
         # Preprocess the image
-        processed_image = self.preprocess_image(image)
+        processed = self.preprocess(img)
         
         # Get prediction
-        prediction = self.model.predict(processed_image, verbose=0)
+        pred = self.model.predict(processed, verbose=0)
         
         # Get emotion label and confidence
-        emotion_idx = np.argmax(prediction[0])
-        confidence = prediction[0][emotion_idx]
-        emotion = self.emotion_labels[emotion_idx]
+        top_idx = int(np.argmax(pred[0]))
+        emotion = self.labels[top_idx]
+        confidence = pred[0][top_idx]
         
         return {
-            'emotion': emotion,
-            'confidence': float(confidence),
-            'all_probabilities': {label: float(prob) for label, prob in zip(self.emotion_labels, prediction[0])}
+            "emotion": emotion,
+            "confidence": float(confidence),
+            "probabilities": {label: float(prob) for label, prob in zip(self.labels, pred[0])}
         }
     
-    def predict_from_file(self, image_path):
+    def predict_from_file(self, file_path: str) -> Dict:
         """Predict emotion from image file"""
         # Load image
-        image = cv2.imread(image_path)
-        if image is None:
-            raise ValueError(f"Could not load image from {image_path}")
+        img = cv2.imread(file_path)
+        if img is None:
+            raise ValueError(f"Could not load image from {file_path}")
         
-        return self.predict_emotion(image)
+        return self.predict(img)
     
     def predict_from_pil(self, pil_image):
         """Predict emotion from PIL Image"""
@@ -64,14 +66,14 @@ class EmotionPredictor:
         if len(image.shape) == 3 and image.shape[2] == 3:
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         
-        return self.predict_emotion(image)
+        return self.predict(image)
 
 # Example usage
 if __name__ == "__main__":
     # Test the predictor
-    predictor = EmotionPredictor()
+    predictor = EmotionPredictor('models/emotion_model.h5')
     print("Emotion predictor loaded successfully!")
-    print(f"Available emotions: {predictor.emotion_labels}")
+    print(f"Available emotions: {predictor.labels}")
     
     # You can test with an image file like this:
     # result = predictor.predict_from_file('path/to/test/image.jpg')

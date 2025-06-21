@@ -8,7 +8,8 @@ Base = declarative_base()
 class StudySession(Base):
     __tablename__ = "study_sessions"
     id = Column(Integer, primary_key=True, index=True)
-    start_time = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(String, nullable=False)
+    start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=True)
     total_duration = Column(Float, nullable=True)  # in minutes
     average_attention_score = Column(Float, nullable=True)  # 0-100
@@ -37,3 +38,19 @@ class AttentionMetric(Base):
     focus_duration = Column(Float)  # in minutes
     break_recommended = Column(Boolean)
     session = relationship("StudySession", back_populates="attention_metrics")
+
+class AttentionRecord(Base):
+    __tablename__ = 'attention_records'
+    id = Column(Integer, primary_key=True)
+    session_id = Column(Integer, nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    emotions = Column(JSON)
+    attention_score = Column(Float)
+
+class FocusRecord(Base):
+    __tablename__ = 'focus_records'
+    id = Column(Integer, primary_key=True)
+    session_id = Column(Integer, nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    attention_score = Column(Float)
+    focus_duration = Column(Float)

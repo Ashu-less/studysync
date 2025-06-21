@@ -4,6 +4,28 @@ import base64
 from PIL import Image
 import numpy as np
 import io
+import cv2
+
+def test_health():
+    resp = requests.get('http://localhost:5000/health')
+    assert resp.status_code == 200
+
+def test_get_emotions():
+    resp = requests.get('http://localhost:5000/emotions')
+    assert resp.status_code == 200
+
+def test_image_prediction():
+    img = np.ones((48, 48), dtype=np.uint8) * 127
+    _, img_encoded = cv2.imencode('.jpg', img)
+    img_base64 = base64.b64encode(img_encoded).decode('utf-8')
+    resp = requests.post('http://localhost:5000/predict_emotion', json={'image': img_base64})
+    assert resp.status_code == 200
+
+def test_base64_conversion():
+    img = np.ones((48, 48), dtype=np.uint8) * 127
+    _, img_encoded = cv2.imencode('.jpg', img)
+    img_base64 = base64.b64encode(img_encoded).decode('utf-8')
+    assert isinstance(img_base64, str)
 
 def test_emotion_api():
     """Test the emotion prediction API"""
